@@ -115,8 +115,9 @@ void test_xc(World& world)
 
 double make_dft_energy(const XCfunctional& xc, const vector_real_function_3d& rho)
 {
-  real_function_3d exc_rho = multiop_values<double, xc_functional, 3>(xc_functional(xc, -1), rho);
-  return exc_rho.trace();
+    /* spin is not used in xc_functional, so we can pass any value */
+    real_function_3d exc_rho = multiop_values<double, xc_functional, 3>(xc_functional(xc, -1), rho);
+    return exc_rho.trace();
 }
 
 int main(int argc, char** argv) 
@@ -153,7 +154,7 @@ int main(int argc, char** argv)
     rho[1] = real_factory_3d(world).f(zero_3d);
     
     rho[0] += (psi_i * psi_i);
-    //rho[1] += (psi_i * psi_i); // If I comment this, the code crashes. Why?
+    rho[1] += (psi_i * psi_i); // If I comment this, the code crashes. Why?
 
     printf("total electron charge: %18.12f\n", rho[0].trace() + rho[1].trace());
 
