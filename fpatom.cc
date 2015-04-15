@@ -45,10 +45,10 @@ class AtomicOrbitalFunctor: public FunctionFunctorInterface<double, 3>
 
         int m;
 
-    double LaguerreL(double x) const
-    {
-        return 1.0;
-    }
+        double LaguerreL(double x) const
+        {
+            return 1.0;
+        }
 
     public:
 
@@ -64,9 +64,18 @@ class AtomicOrbitalFunctor: public FunctionFunctorInterface<double, 3>
         }
 };
 
+class ZeroFunctor: public FunctionFunctorInterface<double, 3>
+{
+    public:
+        double operator()(const coord_3d& x) const
+        {
+            return 1e-2;
+        }
+};
+
 static double zero_3d(const coord_3d& r)
 {
-    return 0.0;
+    return 1e-2;
 }
 
 void test_xc(World& world)
@@ -142,19 +151,34 @@ int main(int argc, char** argv)
     XCfunctional xcfunc;
     xcfunc.initialize("LDA", true, world);
 
-    real_function_3d vnuc = real_factory_3d(world).functor(real_functor_3d(new NuclearPotentialFunctor(1))).thresh(1e-10).truncate_on_project();
+    //real_function_3d vnuc = real_factory_3d(world).functor(real_functor_3d(new NuclearPotentialFunctor(1))).thresh(1e-10).truncate_on_project();
     //vnuc.reconstruct();
 
-    real_function_3d psi_i = real_factory_3d(world).functor(real_functor_3d(new AtomicOrbitalFunctor(1, 1, 0, 0))).thresh(1e-10).truncate_on_project();
-    psi_i.scale(1.0/psi_i.norm2());
+    vector_real_function_3d psi_up;
+    vector_real_function_3d psi_dn;
 
+    psi_up.push_back(real_factory_3d(world).functor(real_functor_3d(new AtomicOrbitalFunctor(1, 1, 0, 0))).thresh(1e-10).truncate_on_project());
+    psi_up.push_back(real_factory_3d(world).functor(real_functor_3d(new AtomicOrbitalFunctor(1, 2, 0, 0))).thresh(1e-10).truncate_on_project());
+    
+    psi_dn.push_back(real_factory_3d(world).functor(real_functor_3d(new AtomicOrbitalFunctor(1, 1, 0, 0))).thresh(1e-10).truncate_on_project());
+
+    for (size_t i = 0; i < psi_up.size(); i++) psi_up[i].scale(1.0 / psi_up[i].norm2());
+    for (size_t i = 0; i < psi_dn.size(); i++) psi_dn[i].scale(1.0 / psi_dn[i].norm2());
+
+    
+    //= real_factory_3d(world).functor(real_functor_3d(new AtomicOrbitalFunctor(1, 1, 0, 0))).thresh(1e-10).truncate_on_project();
+    //psi_i.scale(1.0/psi_i.norm2());
+
+    real_function_3d fzero = real_factory_3d(world).functor(real_functor_3d(new ZeroFunctor())).thresh(1e-10).truncate_on_project();
 
     vector_real_function_3d rho(2);
-    rho[0] = real_factory_3d(world).f(zero_3d);
-    rho[1] = real_factory_3d(world).f(zero_3d);
+    rho[0] = real_factory_3d(world);
+    rho[1] = real_factory_3d(world);
     
-    rho[0] += (psi_i * psi_i);
-    rho[1] += (psi_i * psi_i); // If I comment this, the code crashes. Why?
+    for (size_t i = 0; i < psi_up.size(); i++) rho[0] += (psi_up[i] * psi_up[i]);
+    for (size_t i = 0; i < psi_dn.size(); i++) rho[1] += (psi_dn[i] * psi_dn[i]);
+    //rho[0] += (psi_i * psi_i);
+    //rho[1] += rho[0]; //(fzero * fzero); // If I comment this, the code crashes. Why?
 
     printf("total electron charge: %18.12f\n", rho[0].trace() + rho[1].trace());
 
